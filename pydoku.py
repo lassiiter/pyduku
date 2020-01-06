@@ -1,37 +1,52 @@
 import cv2
 import numpy as np
 
-while True:
-    sudoku = cv2.imread("sudoku.jpg",cv2.IMREAD_GRAYSCALE)
-    width, height = sudoku.shape[:2]
-    outerbox = sudoku
-    sudoku = cv2.GaussianBlur(sudoku,(11,11),0)
-    outerbox = cv2.adaptiveThreshold(sudoku,255,cv2.ADAPTIVE_THRESH_MEAN_C,cv2.THRESH_BINARY,11,2)
-    outerbox = cv2.bitwise_not(outerbox)
-    kernel = np.ones((3,3),np.uint8)
-    outerbox = cv2.dilate(outerbox,kernel,iterations=1)
+sudoku = cv2.imread('sudoku.jpg')
+imgray = cv2.cvtColor(sudoku, cv2.COLOR_BGR2GRAY)
+orig = imgray
+outerbox = imgray
+imgray = cv2.GaussianBlur(imgray,(11,11),0)
+outerbox = cv2.adaptiveThreshold(imgray,255,cv2.ADAPTIVE_THRESH_MEAN_C,cv2.THRESH_BINARY,11,3)
+outerbox = cv2.bitwise_not(outerbox)
+edges = cv2.Canny(outerbox,100,100)
+contours, hierarchy = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
-    # finding largest blob
-    
-    max = -1
-    mask = np.zeros(outerbox.shape[:-1],np.uint8)
-    mask1 = np.zeros((height+2, width+2), np.uint8)
+c = max(contours, key = cv2.contourArea)
 
-    for x in range (0,width):
-        for y in range (0,height):
-            if outerbox[x,y] >=128:
-                area = cv2.floodFill(mask,mask1,(0,0),255) 
-                if area > max:
-                    max = area
-    
-    cv2.imshow('image',outerbox)
+#show green contour outline
+showContours = cv2.drawContours(sudoku,c,-1,(0,255,0), 3)
+cv2.imshow('contorus', showContours)
 
-    key = cv2.waitKey(1)
-    if key == 27:
-        break
+#try to find corner points
+largestContour = cv2.drawContours(sudoku,c,-1,(0,255,0), 3)
+cornersGrey = cv2.inRange(largestContour, (0,255,0), (0,255,0))
+corners = cv2.goodFeaturesToTrack(cornersGrey, 4, .01, 50)
+for i in corners:
+    		x,y = i.ravel()
+		cv2.circle(orig,(x,y),3,255,-1)
+cv2.imshow('corners', orig)
 
 
+#warp toward corners
+pts1 = corners
+print(corners)
+pts2 = np.float32([[0,423],[419,0],[419,423],[0,0]])
+matrix = cv2.getPerspectiveTransform(pts1,pts2)
 
+result = cv2.warpPerspective(orig,matrix,(419,423))
+cv2.imshow('warp', result)
 
+#
 
+#kill on esc
+cv2.waitKey(0)
 cv2.destroyAllWindows()
+
+
+
+
+
+
+
+
+
